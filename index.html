@@ -1,0 +1,1214 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>חיפוש מנות</title>
+<script>
+// Theme: saved choice, else follow the OS. Set before CSS paints to avoid a flash.
+try { document.documentElement.dataset.theme = localStorage.getItem('theme') ||
+  (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+catch { document.documentElement.dataset.theme = 'light'; }
+</script>
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --text: #1d1d1f; --muted: #6b6b70; --border: #e3e1dc;
+  --accent: #e8590c; --accent-ink: #ffffff; --accent-soft: #fff0e6;
+  --zebra: #faf9f7; --hover: #fff4ec; --good: #2b8a3e; --good-soft: #e6f4ea;
+  --bad: #c92a2a; --bad-soft: #fdecec; --promo: #ae3ec9; --promo-soft: #f8ecfb;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+  color-scheme: light;
+}
+:root[data-theme=dark] {
+  --bg: #131315; --panel: #1c1c1f; --text: #ececee; --muted: #9a9aa2; --border: #2e2e33;
+  --accent: #ff8a3d; --accent-ink: #1a1a1a; --accent-soft: #3a2616;
+  --zebra: #202024; --hover: #2c241e; --good: #69db7c; --good-soft: #1d3324;
+  --bad: #ff8787; --bad-soft: #3b1f1f; --promo: #e599f7; --promo-soft: #35213b;
+  --shadow: 0 1px 3px rgba(0,0,0,.4);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.45 system-ui, "Segoe UI", "Noto Sans Hebrew", Arial, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.wrap { max-width: 1500px; margin: 0 auto; padding: 0 16px; }
+
+/* header */
+header { position: sticky; top: 0; z-index: 30; background: var(--panel); border-bottom: 1px solid var(--border); }
+.head { display: flex; align-items: center; gap: 12px; padding: 10px 0; flex-wrap: wrap; }
+.brand { font-weight: 800; font-size: 19px; margin-inline-end: auto; }
+.status { color: var(--muted); font-size: 13px; }
+.addr { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.addr.unset { color: #b45309; cursor: pointer; }
+.stale { background: var(--bad-soft); color: var(--bad); border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+.btn { border: 1px solid var(--border); background: var(--panel); border-radius: 10px; padding: 7px 14px;
+  cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn:disabled { opacity: .55; cursor: progress; }
+.btn.icon { padding: 7px 10px; }
+.progress { padding: 0 0 10px; display: none; }
+.progress.on { display: block; }
+.bar { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 4px; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+.bar.indet > i { width: 30%; animation: indet 1.2s infinite ease-in-out; }
+@keyframes indet { from { margin-inline-start: -30%; } to { margin-inline-start: 100%; } }
+.ptext { font-size: 13px; color: var(--muted); }
+.progress.on { display: flex; align-items: center; gap: 14px; }
+.ring { position: relative; width: 56px; height: 56px; flex: none; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 6; }
+.ring .track { stroke: var(--border); }
+.ring .val { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset .4s; }
+.ring.indet svg { animation: spin 1s linear infinite; }
+.ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; }
+.pstep { font-weight: 600; }
+@keyframes spin { from { transform: rotate(-90deg); } to { transform: rotate(270deg); } }
+.banner { display: none; background: var(--bad-soft); color: var(--bad); padding: 10px 16px; font-weight: 600;
+  align-items: center; gap: 12px; justify-content: center; }
+.banner.on { display: flex; }
+
+/* filters */
+.filters { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow);
+  padding: 14px; margin: 14px 0 10px; display: grid; gap: 12px; }
+.search { width: 100%; font-size: 20px; padding: 12px 16px; border-radius: 12px; border: 2px solid var(--border);
+  background: var(--bg); outline: none; }
+.search:focus { border-color: var(--accent); }
+.searchrow { display: flex; gap: 10px; align-items: center; }
+.searchrow .search { flex: 0 0 60%; width: auto; min-width: 0; }
+.searchrow .search.not { flex: 1 1 auto; font-size: 16px; }
+.searchrow .op { font-weight: 700; color: var(--muted); white-space: nowrap; }
+.chips, .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chip { border: 1px solid var(--border); background: var(--bg); border-radius: 999px; padding: 5px 14px; cursor: pointer; }
+.chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip.recent { max-width: 220px; padding-inline-end: 8px; }
+.chip.recent:disabled { opacity: .55; cursor: default; }
+.field { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.field input[type=number] { width: 78px; }
+.field input[type=number], .field input[type=time], .field select { padding: 6px 8px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg); }
+.toggle { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--border);
+  border-radius: 999px; cursor: pointer; user-select: none; font-size: 14px; background: var(--bg); }
+.toggle input { accent-color: var(--accent); margin: 0; }
+.toggle:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.sep { width: 1px; height: 24px; background: var(--border); }
+.counter { font-weight: 600; margin-inline-end: auto; }
+.linkbtn { background: none; border: none; color: var(--accent); cursor: pointer; padding: 4px; text-decoration: underline; }
+
+/* table */
+.table-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow);
+  overflow: auto; max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); }
+table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1100px; }
+th, td { padding: 9px 10px; text-align: right; vertical-align: top; border-bottom: 1px solid var(--border); }
+th { position: sticky; top: 0; z-index: 5; background: var(--panel); font-size: 13px; color: var(--muted);
+  font-weight: 700; cursor: pointer; white-space: nowrap; user-select: none; box-shadow: 0 1px 0 var(--border); }
+th:hover { color: var(--text); }
+th.sorted { color: var(--accent); }
+th .ind { font-size: 10px; margin-inline-start: 3px; }
+th.nosort { cursor: default; }
+tbody tr { background: var(--panel); }
+tbody tr:nth-child(even) { background: var(--zebra); }
+tbody tr:hover { background: var(--hover); }
+tbody tr.closed { color: var(--muted); }
+tbody tr.closed img { filter: grayscale(1); opacity: .6; }
+td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+th:not(.c-rest):not(.c-dish), td:not(.c-rest):not(.c-dish) { text-align: center; }
+td.num .b-min { display: block; white-space: normal; font-size: 11px; max-width: 110px; margin-inline: auto; }
+th { white-space: nowrap; }
+.rest { display: flex; gap: 8px; align-items: flex-start; min-width: 150px; max-width: 220px; }
+.rest img { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; flex: none; background: var(--border); }
+.rest b { display: block; font-weight: 600; }
+.small { font-size: 12px; color: var(--muted); }
+.dish { min-width: 220px; max-width: 380px; }
+.dish b { font-weight: 650; }
+.dish { display: flex; gap: 6px; align-items: flex-start; }
+.dish > div { min-width: 0; }
+.fav { flex: none; background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 18px; line-height: 1.2;
+  color: var(--muted); }
+.fav.on { color: #e03131; }
+.fav:hover { transform: scale(1.15); }
+.marks { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
+.hide { margin: 0; cursor: pointer; accent-color: var(--muted); }
+tbody tr.hidden-row { opacity: .5; }
+.noship { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); cursor: pointer;
+  margin-top: 3px; user-select: none; white-space: nowrap; }
+.noship input { margin: 0; accent-color: var(--bad); cursor: pointer; }
+.noship:has(input:checked) { color: var(--bad); font-weight: 600; }
+.m-rest .noship { margin-inline-start: 6px; }
+.desc { font-size: 12.5px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.m-rest { display: none; }
+s { color: var(--muted); font-size: 12px; margin-inline-start: 4px; }
+.badge { display: inline-block; border-radius: 6px; padding: 1px 7px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.b-promo { background: var(--promo-soft); color: var(--promo); white-space: normal; }
+.b-free { background: var(--good-soft); color: var(--good); }
+.b-closed { background: var(--bad-soft); color: var(--bad); }
+.b-open { background: var(--good-soft); color: var(--good); }
+.b-pool { background: var(--accent-soft); color: var(--accent); white-space: normal; max-width: 120px; cursor: help; }
+.b-min { background: var(--bg); color: var(--muted); border: 1px solid var(--border); margin-top: 3px; }
+.total { font-weight: 700; }
+/* time/date notes parsed from the restaurant announcement */
+.tn { display: block; margin: 3px auto 0; max-width: 230px; white-space: normal; text-align: right; font-weight: 500;
+  border: 1px solid transparent; cursor: help; }
+.tn.on { background: var(--good-soft); color: var(--good); font-weight: 650; }
+.tn.warn { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); font-weight: 650; }
+.tn.off { background: var(--bg); color: var(--muted); border-color: var(--border); opacity: .75; }
+.tn.info { background: var(--bg); color: var(--text); border-color: var(--border); }
+.tn i { font-style: normal; font-weight: 700; display: block; font-size: 10.5px; }
+.pic { cursor: zoom-in; font-size: 13px; margin-inline-start: 4px; background: none; border: none; padding: 0; }
+#preview { position: fixed; z-index: 90; pointer-events: none; display: none; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.25); padding: 4px; }
+#preview.on { display: block; }
+#preview img { display: block; width: 260px; height: 260px; object-fit: cover; border-radius: 9px; background: var(--bg); }
+#preview .ld { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+.stars { cursor: pointer; border-bottom: 1px dotted var(--muted); }
+#reviews { position: fixed; z-index: 91; display: none; width: min(360px, calc(100vw - 16px)); background: var(--panel);
+  color: var(--text); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 16px 50px rgba(0,0,0,.28); }
+#reviews.on { display: flex; flex-direction: column; }
+#reviews .rh { padding: 12px 14px 10px; border-bottom: 1px solid var(--border); font-weight: 700; }
+#reviews .rh .small { font-weight: 500; display: block; }
+#reviews .rl { overflow-y: auto; max-height: 320px; padding: 4px 14px 10px; overscroll-behavior: contain; }
+#reviews .rv { padding: 9px 0; border-bottom: 1px solid var(--border); }
+#reviews .rv:last-child { border-bottom: none; }
+#reviews .rv .top { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; color: var(--muted); }
+#reviews .rv .top b { color: var(--text); font-weight: 600; }
+#reviews .rv .st { color: #f59f00; letter-spacing: 1px; margin-inline-start: auto; white-space: nowrap; }
+#reviews .rv p { margin: 3px 0 0; font-size: 14px; }
+#reviews .rempty { padding: 16px 0; color: var(--muted); text-align: center; }
+.ann { cursor: help; font-size: 12px; margin-inline-start: 4px; }
+/* learned time-of-day patterns */
+#patDlg { width: min(960px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); }
+.pcov { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; font-size: 13.5px; }
+.pcov.err { color: var(--bad); border-color: var(--bad); }
+.pcards { display: grid; gap: 10px; margin-top: 12px; }
+.pcard { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--panel); }
+.pcard .rest { max-width: none; }
+.pcard .tn { display: inline-block; margin: 4px 0 0 6px; max-width: none; }
+.strip { display: grid; grid-template-columns: 52px repeat(36, minmax(0, 1fr)); gap: 1px; margin-top: 8px; font-size: 10px; }
+.strip > b { font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.strip > i { height: 12px; border-radius: 2px; background: var(--border); opacity: .45; }
+.strip > i.y { background: var(--good); opacity: .8; }
+.strip > i.n { background: var(--bad); opacity: .7; }
+.strip > i.p { background: var(--promo); opacity: .85; }
+.strip > i.a { background: var(--accent); opacity: .85; }
+.strip > i.k { background: var(--muted); opacity: .35; }
+.strip > i.now { outline: 2px solid var(--text); outline-offset: -1px; }
+.strip > span { color: var(--muted); grid-column: span 6; }
+.fee-t { display: block; font-size: 10.5px; color: var(--good); font-weight: 600; }
+.tquick { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.tquick .chip { padding: 3px 10px; font-size: 13px; }
+.order { display: inline-block; background: var(--accent); color: var(--accent-ink); text-decoration: none;
+  border-radius: 8px; padding: 6px 12px; font-weight: 600; white-space: nowrap; }
+.order:hover { filter: brightness(1.08); }
+.empty { padding: 50px 16px; text-align: center; color: var(--muted); font-size: 17px; }
+.pager { display: flex; justify-content: center; gap: 8px; align-items: center; padding: 12px; flex-wrap: wrap; }
+
+/* dialogs & toast */
+dialog { border: 1px solid var(--border); border-radius: 16px; background: var(--panel); color: var(--text);
+  padding: 20px; width: min(560px, calc(100vw - 32px)); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+dialog::backdrop { background: rgba(0,0,0,.4); }
+dialog h2 { margin: 0 0 12px; font-size: 19px; }
+dialog label { display: block; font-weight: 600; font-size: 14px; margin: 12px 0 4px; }
+dialog textarea, dialog select, dialog input[type=number], dialog input[type=text] { width: 100%; padding: 8px 10px;
+  border-radius: 8px; border: 1px solid var(--border); background: var(--bg); }
+dialog textarea { min-height: 70px; direction: ltr; font-size: 12.5px; }
+dialog textarea.rtl { direction: rtl; font-size: 14px; }
+.hint { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+.actions .grow { margin-inline-end: auto; }
+.otp { font-size: 26px; letter-spacing: 6px; text-align: center; direction: ltr; }
+.msg { margin-top: 10px; font-weight: 600; min-height: 1.4em; }
+#toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(120px); background: var(--text);
+  color: var(--bg); padding: 10px 20px; border-radius: 12px; transition: transform .25s; z-index: 100; font-weight: 600;
+  max-width: calc(100vw - 32px); }
+#toast.on { transform: translateX(-50%) translateY(0); }
+#toast.err { background: var(--bad); color: #fff; }
+
+/* mobile: drop the restaurant column into the dish cell, pin dish + order */
+@media (max-width: 760px) {
+  .brand { font-size: 17px; }
+  .search { font-size: 17px; }
+  .searchrow { flex-wrap: wrap; }
+  .searchrow .search { flex-basis: 100%; }
+  table { min-width: 860px; }
+  .c-rest { display: none; }
+  .m-rest { display: block; }
+  td.c-dish, th.c-dish { position: sticky; right: 0; z-index: 2; background: inherit; box-shadow: -1px 0 0 var(--border); }
+  th.c-dish { z-index: 6; }
+  td.c-order, th.c-order { position: sticky; left: 0; z-index: 2; background: inherit; box-shadow: 1px 0 0 var(--border); }
+  th.c-order { z-index: 6; }
+  th.c-dish, th.c-order { background: var(--panel); }
+  .status { order: 5; flex-basis: 100%; font-size: 12px; }
+  .dish { min-width: 170px; max-width: 200px; }
+  .table-wrap { max-height: calc(100dvh - 120px); }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap head">
+    <div class="brand">🍽️ מה בא לי</div>
+    <span class="addr" id="addr"></span>
+    <span class="status" id="status">טוען…</span>
+    <span class="stale" id="stale" hidden></span>
+    <button class="btn primary" id="refreshBtn">🔄 רענון נתונים</button>
+    <button class="btn icon" id="themeBtn"></button>
+    <button class="btn" id="patBtn" title="מתי מסעדות משנות תנאים במהלך היום – נלמד מדגימות חוזרות">📈 דפוסי שעות</button>
+    <button class="btn icon" id="settingsBtn" title="הגדרות" aria-label="הגדרות">⚙️</button>
+    <button class="btn icon" id="exitBtn" title="יציאה מהאפליקציה" aria-label="יציאה מהאפליקציה">⏻</button>
+  </div>
+  <div class="wrap progress" id="progress">
+    <div class="ring" id="ring" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+      <svg viewBox="0 0 56 56"><circle class="track" cx="28" cy="28" r="24"/>
+        <circle class="val" cx="28" cy="28" r="24" stroke-dasharray="150.8" stroke-dashoffset="150.8"/></svg>
+      <b id="pct"></b>
+    </div>
+    <div><div class="pstep" id="pstep"></div><div class="ptext" id="ptext"></div></div>
+  </div>
+  <div class="banner" id="loginBanner">🔐 נדרשת התחברות ל-10bis <button class="btn" id="bannerLogin">התחברות</button></div>
+</header>
+
+<main class="wrap">
+  <section class="filters">
+    <div class="searchrow">
+      <input class="search" id="q" type="search" placeholder="מה בא לך לאכול? (‎-מילה = בלי)" autocomplete="off" autofocus>
+      <span class="op">אבל לא</span>
+      <input class="search not" id="nq" type="search" placeholder="למשל: חריף פטריות" autocomplete="off"
+        title="מנות שמכילות אחת מהמילים האלה יוסתרו">
+    </div>
+    <div class="chips">
+      <select id="recent" class="chip recent" title="10 החיפושים האחרונים" aria-label="חיפושים אחרונים"></select>
+      <span id="chips" class="chips"></span>
+    </div>
+    <div class="row">
+      <span class="field">כשרות <select id="kosher">
+        <option value="">הכל</option>
+        <option value="yes">כשר</option>
+        <option value="no">לא כשר</option>
+      </select></span>
+      <span class="field" title="משלוח משותף = הזמנה עד שעת סגירה בבוקר, הכל מגיע יחד בצהריים (משלוחי משרדים). לא תמיד זמין לכל כתובת.">משלוח <select id="mode">
+        <option value="">הכל</option>
+        <option value="asap">🛵 רגיל בלבד</option>
+        <option value="pool">🚚 משותף בלבד</option>
+      </select></span>
+      <span class="sep"></span>
+      <span class="field">מחיר מ־<input type="number" id="pmin" min="0" step="1" inputmode="numeric"></span>
+      <span class="field">עד <input type="number" id="pmax" min="0" step="1" inputmode="numeric"> ₪</span>
+      <label class="toggle"><input type="checkbox" id="incl"> כולל משלוח</label>
+      <span class="sep"></span>
+      <span class="field" title="מסנן לפי שעות המשלוח, ומחשב לפי השעה הזו מבצעי שעות, משלוח חינם בשעות מסוימות והודעות המסעדה">🕒 אפשר להזמין ב־<input type="time" id="time"></span>
+      <span class="tquick" id="tquick"></span>
+      <span class="field" title="מסתיר מנות שלא יגיעו עד השעה הזו – לפי משלוח רגיל, משלוח מתוזמן או משלוח משותף (מה שמגיע הכי מוקדם)">🎯 לקבל עד <input type="time" id="by"></span>
+      <label class="toggle"><input type="checkbox" id="open"> פתוח עכשיו</label>
+      <label class="toggle"><input type="checkbox" id="free"> משלוח חינם</label>
+      <label class="toggle"><input type="checkbox" id="promo"> רק מבצעים</label>
+      <label class="toggle"><input type="checkbox" id="noext"> בלי שתייה ותוספות</label>
+      <label class="toggle"><input type="checkbox" id="fav"> ❤️ רק מועדפים</label>
+      <label class="toggle"><input type="checkbox" id="showhid"> הצג מוסתרים <span id="hidCount"></span></label>
+    </div>
+    <div class="row">
+      <span class="counter" id="counter"></span>
+      <button class="linkbtn" id="clear">ניקוי סינון</button>
+      <button class="btn" id="export">⬇️ ייצוא ל-Excel/CSV</button>
+    </div>
+  </section>
+
+  <div class="table-wrap" id="tableWrap">
+    <table>
+      <thead><tr id="thead"></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>אין תוצאות – נסו להרחיב את טווח המחירים</div>
+  </div>
+  <div class="pager" id="pager"></div>
+</main>
+
+<dialog id="settingsDlg">
+  <h2>⚙️ הגדרות</h2>
+  <div class="hint">📍 כתובת המשלוח נלקחת אוטומטית מחשבון ה-10bis שלכם.
+    <button class="linkbtn" id="sRedetect">שיניתם כתובת ב-10bis? זיהוי מחדש</button></div>
+  <label for="sEngine">מנוע שליפה</label>
+  <select id="sEngine">
+    <option value="playwright">Playwright (דפדפן אמיתי, תומך בהתחברות)</option>
+    <option value="curl">curl_cffi (מהיר, בלי התחברות)</option>
+  </select>
+  <label for="sMethod">שיטת התחברות</label>
+  <select id="sMethod">
+    <option value="otp">קוד חד-פעמי (SMS/מייל)</option>
+    <option value="password">מייל + סיסמה</option>
+    <option value="manual">ידנית בחלון דפדפן</option>
+  </select>
+  <div class="hint" id="credsHint"></div>
+  <label for="sAuto">רענון אוטומטי כל … שעות (0 = כבוי)</label>
+  <input type="number" id="sAuto" min="0" step="0.5">
+  <label for="sSnap">📈 דגימת תנאי מסעדות כל … דקות (0 = כבוי)</label>
+  <input type="number" id="sSnap" min="0" step="5">
+  <div class="row" style="margin-top:6px">
+    <span class="field">בין <input type="time" id="sSnapFrom"></span>
+    <span class="field">ל־<input type="time" id="sSnapTo"></span>
+  </div>
+  <div class="hint">דגימה = קריאה אחת לרשימת המסעדות (בלי תפריטים), נשמרת להיסטוריה ללימוד דפוסי שעות.
+    כשהאפליקציה סגורה אפשר לתזמן ב-Task Scheduler: <code>MaBaLi.exe --snapshot</code></div>
+  <label for="sSyn">מילים נרדפות (שורה לכל קבוצה, מופרדות ב-=)</label>
+  <textarea id="sSyn" class="rtl"></textarea>
+  <div class="msg" id="sMsg"></div>
+  <div class="actions">
+    <button class="btn primary" id="sSave">שמירה</button>
+    <button class="btn" id="sTest">בדיקת התחברות</button>
+    <button class="btn" id="sLogout">התנתקות</button>
+    <button class="btn grow" value="cancel" formmethod="dialog" id="sClose">סגירה</button>
+  </div>
+</dialog>
+
+<dialog id="patDlg">
+  <h2>📈 דפוסי שעות – מתי מסעדות משנות תנאים</h2>
+  <div class="pcov" id="pCov">טוען…</div>
+  <div class="row" style="margin-top:10px">
+    <input type="search" id="pQ" placeholder="חיפוש מסעדה" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg)">
+    <label class="toggle"><input type="checkbox" id="pNow"> רק מה שבתוקף עכשיו</label>
+    <button class="btn" id="pSnap">📸 דגימה עכשיו</button>
+  </div>
+  <div class="pcards" id="pCards"></div>
+  <div class="actions"><button class="btn grow" id="pClose">סגירה</button></div>
+</dialog>
+
+<dialog id="loginDlg">
+  <h2>🔐 התחברות ל-10bis</h2>
+  <div id="lInfo" class="hint"></div>
+  <div id="otpBox" hidden>
+    <label for="otp">הזינו את הקוד שקיבלתם</label>
+    <input type="text" id="otp" class="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="8">
+  </div>
+  <div class="msg" id="lMsg"></div>
+  <div class="actions">
+    <button class="btn primary" id="lGo">התחברות</button>
+    <button class="btn primary" id="lOtp" hidden>שליחת קוד</button>
+    <button class="btn grow" id="lClose">סגירה</button>
+  </div>
+</dialog>
+
+<div id="toast"></div>
+<div id="reviews" role="dialog" aria-label="ביקורות"><div class="rh"></div><div class="rl"></div></div>
+<div id="preview"><span class="ld">טוען תמונה…</span><img alt=""></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const PAGE = 100, STALE_HOURS = 6;
+const CHIPS = ['פיצה', 'בורגר', 'סושי', 'שווארמה', 'סלט', 'אסייתי'];
+const EXTRA_RE = /שתי|משקא|משקה|תוספ|רטב|רוטב|אקסטר|בירה|בירות|יינות|drinks?|extras?|sides?|sauces?/i;
+const COLS = [
+  { key: 'rest',  label: 'מסעדה', cls: 'c-rest' },
+  { key: 'dish',  label: 'מנה', cls: 'c-dish' },
+  { key: 'price', label: 'מחיר' },
+  { key: 'promo', label: 'מבצע / שעות' },
+  { key: 'fee',   label: 'משלוח' },
+  { key: 'eta',   label: 'מגיע' },
+  { key: 'rating', label: 'דירוג' },
+  { key: 'total', label: 'סה״כ כולל משלוח' },
+  { key: 'min',   label: 'מינימום' },
+  { key: 'open',  label: 'פתוח' },
+  { key: null,    label: '🛒 הזמנה', cls: 'c-order' },
+];
+const DEFAULTS = { q: '', nq: '', kosher: '', mode: '', pmin: '', pmax: '', incl: false, time: '', by: '', open: true, free: false,
+                   promo: false, noext: false, fav: false, showhid: false, sort: 'total', dir: 1, page: 0 };
+let S = { ...DEFAULTS };
+const favKey = d => `${d.restaurant_id}:${d.dish_id}`;
+function loadSet(name) { try { return new Set(JSON.parse(localStorage.getItem(name) || '[]')); } catch { return new Set(); } }
+function saveSet(name, set) { try { localStorage.setItem(name, JSON.stringify([...set])); } catch {} }
+const FAVS = loadSet('favorites'), HIDDEN = loadSet('hidden');
+// Restaurants that turned out not to deliver here, per delivery address: { [search_url]: [restaurant_id] }
+let BLOCKED = {}, BL = new Set();
+try { BLOCKED = JSON.parse(localStorage.getItem('blockedRests') || '{}') || {}; } catch {}
+const addrKey = () => CFG.search_url || 'default';
+function saveBlocked() {
+  BLOCKED[addrKey()] = [...BL];
+  try { localStorage.setItem('blockedRests', JSON.stringify(BLOCKED)); } catch {}
+}
+let RECENT = [];   // [{ q, nq }], newest first, max 10
+try { RECENT = JSON.parse(localStorage.getItem('recent') || '[]').filter(r => r && r.q); } catch {}
+const recentLabel = r => r.q + (r.nq ? ` · בלי ${r.nq}` : '');
+function renderRecent() {
+  const sel = $('recent');
+  sel.innerHTML = `<option value="">🕘 חיפושים אחרונים${RECENT.length ? ` (${RECENT.length})` : ''}</option>` +
+    RECENT.map((r, i) => `<option value="${i}">${esc(recentLabel(r))}</option>`).join('') +
+    (RECENT.length ? '<option value="clear">🗑️ ניקוי היסטוריה</option>' : '');
+  sel.disabled = !RECENT.length;
+}
+function saveRecent(picked) {
+  const q = S.q.trim(), nq = S.nq.trim();
+  if (q.length < 2) return;
+  // Still typing the same search (e.g. "פיצ" → "פיצה")? Replace instead of adding a new entry.
+  if (picked !== true && RECENT[0] && q.startsWith(RECENT[0].q) && nq.startsWith(RECENT[0].nq || '')) RECENT.shift();
+  RECENT = [{ q, nq }, ...RECENT.filter(r => r.q !== q || (r.nq || '') !== nq)].slice(0, 10);
+  try { localStorage.setItem('recent', JSON.stringify(RECENT)); } catch {}
+  renderRecent();
+}
+let ALL = [], META = {}, VIEW = [], SYN = [], CFG = {};
+
+/* ---------- helpers ---------- */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => n == null ? '' : '₪' + (Number.isInteger(n) ? n : n.toFixed(2));
+const toMin = t => { const m = /^(\d{1,2}):(\d{2})/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
+const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+function inWindow(t, a, b) {
+  if (t == null || a == null || b == null) return false;
+  if (a === b) return true;
+  return a < b ? (t >= a && t < b) : (t >= a || t < b);   // crosses midnight
+}
+const FINALS = { 'ך': 'כ', 'ם': 'מ', 'ן': 'נ', 'ף': 'פ', 'ץ': 'צ' };
+function norm(s) {
+  return ' ' + String(s || '').toLowerCase()
+    .replace(/[֑-ׇ]/g, '')               // niqqud & cantillation
+    .replace(/[״׳"'`]/g, '')
+    .replace(/[ךםןףץ]/g, c => FINALS[c])
+    .split(/[^0-9a-zא-ת]+/)
+    .filter(Boolean)
+    .map(w => w.length > 2 && w[0] === 'ה' ? w.slice(1) : w)   // drop leading ה
+    .join(' ') + ' ';
+}
+/* ---------- time/date notes from the free-text announcement ---------- */
+const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+// A clock time with an optional Hebrew lead-in. Rejects durations, prices, dates, phones, litres.
+const TIME_RE = /(?:(?<![א-ת])(בין|החל\s*מ(?:שעה)?|משעה|מ-?|בשעה|ב-?|עד\s*(?:ה?שעה)?|לפני|ל-?))?\s*(?<![\d:/.])(\d{1,2})(?::(\d{2}))?(?![\d:\/])(?!\.\d)(?!\s*(?:דק|ימי|יום|שעות|ש["״]?ח|₪|%|ליטר))/g;
+const NOTE_CACHE = new Map();
+const fmtMin = m => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+function parseNotes(text) {
+  if (!text) return [];
+  if (NOTE_CACHE.has(text)) return NOTE_CACHE.get(text);
+  const notes = [];
+  for (const seg of text.split(/\n|(?<!\d)\.(?!\d)| \/ /).map(s => s.trim()).filter(Boolean)) {
+    const toks = [];
+    for (const m of seg.matchAll(TIME_RE)) {
+      const pre = (m[1] || '').replace(/\s+/g, ''), h = +m[2], mm = m[3] == null ? 0 : +m[3];
+      if (m[3] == null ? !(pre && h >= 6 && h <= 23) : !(h <= 24 && mm < 60)) continue;
+      toks.push({ pre, min: h * 60 + mm, start: m.index, end: m.index + m[0].length });
+    }
+    let from = null, to = null;
+    const ri = toks.findIndex((t, i) => toks[i + 1] &&
+      (t.pre === 'בין' || /^\s*[-–]\s*$/.test(seg.slice(t.end, toks[i + 1].start))));
+    if (ri >= 0) { from = toks[ri].min; to = toks[ri + 1].min; }
+    else for (const t of toks) {
+      if (/^(עד|לפני)/.test(t.pre)) to ??= t.min;
+      else if (t.pre && !/^ל/.test(t.pre)) from ??= t.min;
+    }
+    const days = /ימי|יום|בשישי|בשבת|בחמישי/.test(seg)
+      ? DAY_NAMES.map((n, i) => new RegExp(`(?:^|[\\s,ו־-]|ב|ימי\\s)${n}(?![א-ת])`).test(seg) ? i : -1).filter(i => i >= 0) : [];
+    const dm = /(?<!\d)(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?(?!\d)/.exec(seg);
+    const date = dm ? `${+dm[1]}/${+dm[2]}` : null;
+    if (from == null && to == null && !days.length && !date) continue;   // nothing time-dependent
+    const kind = /משלוח(?:ים)?\s*(?:חינם|בחינם)|ללא\s*(?:דמי\s*)?משלוח|דמי\s*משלוח\s*(?:חינם|0)/.test(seg) ? 'free'
+      : /הנחה|%|מבצע|מתנה|1\+1|happy/i.test(seg) ? 'deal'
+      : from != null && (to == null ? /מטבח|נפתח|מתחיל|החל|פעיל|חלוקת|משלוחים/ : /נפתח|מתחיל|החל|פעיל|חלוקת/).test(seg) ? 'start'
+      : 'info';
+    notes.push({ text: seg, kind, from, to, days: days.length ? days : null, date });
+  }
+  NOTE_CACHE.set(text, notes);
+  return notes;
+}
+// on = deal/rule applies at time t today · off = doesn't · warn = deliveries not started yet · info = just FYI
+function noteState(n, t) {
+  const now = new Date();
+  if (n.date && n.date !== `${now.getDate()}/${now.getMonth() + 1}`) return 'off';
+  if (n.days && !n.days.includes(now.getDay())) return 'off';
+  if (n.kind === 'free' || n.kind === 'deal') return inWindow(t, n.from ?? 0, n.to ?? 1440) || (n.from == null && n.to == null) ? 'on' : 'off';
+  if (n.kind === 'start') return t < n.from ? 'warn' : 'info';
+  return n.days || n.date ? 'on' : 'info';
+}
+function noteWhy(n, st, t) {
+  const at = `ב-${fmtMin(t)}`;
+  if (n.date && st === 'off') return `רק בתאריך ${n.date}`;
+  if (n.days && st === 'off') return `רק ביום ${n.days.map(i => DAY_NAMES[i]).join('/')}`;
+  if (st === 'warn') return `⚠️ משלוחים רק מ-${fmtMin(n.from)}`;
+  if (n.kind === 'free' || n.kind === 'deal') return st === 'on' ? `✓ בתוקף ${at}` : `✗ לא בתוקף ${at}`;
+  return st === 'on' ? '✓ רלוונטי היום' : '';
+}
+function setSynonyms(text) {
+  SYN = String(text || '').split(/\n|,/).map(l => l.split('=').map(w => norm(w).trim()).filter(Boolean))
+    .filter(g => g.length > 1);
+}
+function expand(term) {
+  const out = new Set([term]);
+  if (term.length >= 2) for (const g of SYN)
+    if (g.some(w => w === term || (term.length >= 3 && (w.startsWith(term) || term.startsWith(w))))) g.forEach(w => out.add(w));
+  return [...out];
+}
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+function toast(msg, err) {
+  const t = $('toast'); t.textContent = msg; t.className = 'on' + (err ? ' err' : '');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = err ? 'err' : '', err ? 6000 : 3500);
+}
+const TOKEN = document.querySelector('meta[name=app-token]')?.content || '';
+async function api(path, opts = {}) {
+  const r = await fetch(path, { headers: { 'Content-Type': 'application/json', 'X-App-Token': TOKEN }, ...opts,
+                                 body: opts.body && JSON.stringify(opts.body) });
+  let data = null; try { data = await r.json(); } catch {}
+  if (!r.ok && r.status !== 409) throw new Error(data?.detail || data?.error || `HTTP ${r.status}`);
+  return { status: r.status, data };
+}
+
+/* ---------- data ---------- */
+function prepare(d) {
+  d._hay = norm([d.dish_name, d.description, d.category].join(' '));
+  d._cui = norm(d.cuisine);
+  d._notes = parseNotes(d.announcement);
+  d._st = []; d._fee = d.delivery_fee || 0;
+  d._total = (d.price || 0) + d._fee;
+  d._from = toMin(d.delivery_from);
+  d._to = d._toW = toMin(d.delivery_to);   // _toW: wall-clock end, _to: sortable end (+24h past midnight)
+  if (d._to != null && d._from != null && d._to <= d._from) d._to += 1440;
+  d._extra = (d.price || 0) < 10 || EXTRA_RE.test(d.category || '');
+  d._promoAmt = d.original_price ? d.original_price - d.price : (d.promo ? 0.01 : 0);
+  return d;
+}
+/* ---------- arrival: when would an order placed at minute T actually arrive? ---------- */
+// RINFO (per restaurant, from api.10bis.co.il at refresh time): asap_now, pool_now, asap_min, pool_at, slots, free_over
+let RINFO = {}, SCRAPE_MIN = null, T_EVAL = 0;
+const POOL_LEN = 30, SLOT_LEAD = 40;   // shared delivery arrives within ~30 min; 10bis offers slots ~45 min ahead
+const sameDayData = () => META.last_updated && new Date(META.last_updated).toDateString() === new Date().toDateString();
+const rinfo = d => SCRAPE_MIN != null ? RINFO[d.restaurant_id] : null;   // only valid on the day it was fetched
+function canDo(d, kind) {
+  const ri = rinfo(d);
+  if (!ri) return kind === 'pool' ? d.delivery_mode === 'Pool' : d.delivery_mode !== 'Pool';
+  return kind === 'pool' ? ri.pool_now || d.delivery_mode === 'Pool' : ri.asap_now || ri._slots.length > 0;
+}
+function arrivalFor(d, T) {
+  const ri = rinfo(d), kinds = S.mode === 'pool' ? ['pool'] : S.mode === 'asap' ? ['asap', 'slot'] : ['asap', 'slot', 'pool'];
+  if (!ri) {   // old data: delivery hours + ETA only
+    if (!inWindow(T, d._from, d._toW) || !kinds.includes(d.delivery_mode === 'Pool' ? 'pool' : 'asap')) return null;
+    const a = T + (d.eta_min ?? 0);
+    return { s: a, e: a, kind: 'asap', mins: d.eta_min };
+  }
+  const opts = [], slots = ri._slots, lastSlot = slots.length ? slots[slots.length - 1][0] : null;
+  if (ri.asap_now && kinds.includes('asap')) {
+    // Pool restaurants' open/close hours are the shared-order window, so without slots we only trust
+    // "regular delivery is active" for a while after the refresh.
+    const ok = slots.length ? T <= lastSlot : d.delivery_mode !== 'Pool' ? inWindow(T, d._from, d._toW) : T <= SCRAPE_MIN + 120;
+    const mins = ri.asap_min ?? d.eta_min ?? 45;
+    if (ok) opts.push({ s: T + mins, e: T + mins, kind: 'asap', mins });
+  }
+  const sl = kinds.includes('slot') && slots.find(([s]) => s >= T + SLOT_LEAD);
+  if (sl) opts.push({ s: sl[0], e: sl[1], kind: 'slot' });
+  if (kinds.includes('pool') && (ri.pool_now || d.delivery_mode === 'Pool') && ri.pool_at
+      && T >= (d._from ?? 0) && T <= (d._toW ?? 1440)) {
+    const p = toMin(ri.pool_at);
+    if (p > T) opts.push({ s: p, e: p + POOL_LEN, kind: 'pool' });
+  }
+  return opts.reduce((b, o) => !b || o.e < b.e ? o : b, null);   // whichever arrives first
+}
+function isOpen(d) {
+  if (rinfo(d)) return !!d._arrNow;
+  if (sameDayData() && d.closed_today) return false;
+  return inWindow(nowMin(), d._from, d._toW);
+}
+async function loadData() {
+  const { data } = await api('/api/data');
+  META = data.meta || {};
+  RINFO = data.restaurants || {};
+  loadPatterns().then(() => { if (Object.keys(PAT).length) render(); });
+  for (const ri of Object.values(RINFO))
+    ri._slots = (ri.slots || []).map(([a, b]) => [toMin(a), toMin(b)]).filter(([a, b]) => a != null && b != null).sort((x, y) => x[0] - y[0]);
+  SCRAPE_MIN = sameDayData() && Object.keys(RINFO).length ? (d => d.getHours() * 60 + d.getMinutes())(new Date(META.last_updated)) : null;
+  ALL = (data.dishes || []).map(prepare);
+  renderStatus();
+  apply();
+}
+
+/* ---------- filter + sort ---------- */
+const SORTERS = {
+  rest: (a, b) => a.restaurant_name.localeCompare(b.restaurant_name, 'he'),
+  dish: (a, b) => a.dish_name.localeCompare(b.dish_name, 'he'),
+  price: (a, b) => a.price - b.price,
+  promo: (a, b) => a._promoAmt - b._promoAmt,
+  fee: (a, b) => a._fee - b._fee,
+  total: (a, b) => a._total - b._total,
+  min: (a, b) => a.min_order - b.min_order,
+  hours: (a, b) => (a._from ?? 9999) - (b._from ?? 9999) || (a._to ?? 9999) - (b._to ?? 9999),
+  eta: (a, b) => (a._arr?.e ?? 9999) - (b._arr?.e ?? 9999),
+  dist: (a, b) => (a.distance_km ?? 999) - (b.distance_km ?? 999),
+  rating: (a, b) => (b.rating ?? 0) - (a.rating ?? 0),
+  open: (a, b) => (a._open === b._open ? 0 : a._open ? -1 : 1),
+};
+function apply() {
+  // A term that matches no dish text anywhere (e.g. "אסייתי") falls back to the restaurant's cuisine.
+  const toTerms = s => norm(s).trim().split(' ').filter(Boolean).map(expand)
+    .map(alts => ({ alts, cuisine: !ALL.some(d => alts.some(a => d._hay.includes(a))) }));
+  const hit = (d, { alts, cuisine }) => alts.some(a => (cuisine ? d._cui : d._hay).includes(a));
+  // "-word" in the main box excludes, same as the "but not" box.
+  const words = S.q.split(/\s+/), neg = words.filter(w => w.length > 1 && w[0] === '-').map(w => w.slice(1));
+  const terms = toTerms(words.filter(w => w[0] !== '-').join(' '));
+  const nots = toTerms([S.nq, ...neg].join(' '));
+  const pmin = S.pmin === '' ? -Infinity : +S.pmin, pmax = S.pmax === '' ? Infinity : +S.pmax;
+  const t = toMin(S.time), tEval = t ?? nowMin();   // notes are judged at the chosen hour, else now
+  BL = new Set(BLOCKED[addrKey()] || []);
+  T_EVAL = tEval;
+  const by = toMin(S.by), now = nowMin(), arrCache = new Map();
+  VIEW = ALL.filter(d => {
+    // Same answer for every dish of a restaurant: compute once per restaurant.
+    let c = arrCache.get(d.restaurant_id);
+    if (!c) arrCache.set(d.restaurant_id, c = { now: arrivalFor(d, now), at: t == null ? null : arrivalFor(d, t) });
+    d._arrNow = c.now; d._arr = t == null ? c.now : c.at;
+    d._open = isOpen(d);
+    if (d._notes.length) {
+      d._st = d._notes.map(n => noteState(n, tEval));
+      d._freeNow = d._notes.find((n, i) => n.kind === 'free' && d._st[i] === 'on') || null;
+      d._dealNow = d._notes.some((n, i) => n.kind !== 'info' && n.kind !== 'start' && d._st[i] === 'on');
+      d._fee = d._freeNow ? 0 : d.delivery_fee || 0;
+      d._total = (d.price || 0) + d._fee;
+    }
+    const p = S.incl ? d._total : d.price;
+    if (p < pmin || p > pmax) return false;
+    if (S.open && !d._open) return false;
+    if (S.free && d._fee > 0) return false;
+    if (S.promo && !d.promo && !d._dealNow) return false;
+    if (S.noext && d._extra) return false;
+    if (S.kosher && d.kosher !== (S.kosher === 'yes')) return false;   // unknown (old data) matches neither
+    if (S.mode && !canDo(d, S.mode)) return false;
+    if (S.fav && !FAVS.has(favKey(d))) return false;
+    if (!S.showhid && (HIDDEN.has(favKey(d)) || BL.has(d.restaurant_id))) return false;
+    if (t != null && !d._arr) return false;
+    if (by != null && (!d._arr || d._arr.e > by)) return false;
+    return terms.every(t => hit(d, t)) && !nots.some(t => hit(d, t));
+  });
+  const cmp = SORTERS[S.sort] || SORTERS.total, dir = S.dir;
+  VIEW.sort((a, b) => dir * cmp(a, b) || a._total - b._total);
+  const rests = new Set(VIEW.map(d => d.restaurant_id)).size;
+  $('counter').textContent = `${VIEW.length.toLocaleString('he-IL')} מנות מ-${rests.toLocaleString('he-IL')} מסעדות`;
+  const blRests = new Set(ALL.filter(d => BL.has(d.restaurant_id)).map(d => d.restaurant_id)).size;
+  $('hidCount').textContent = HIDDEN.size || blRests
+    ? `(${[HIDDEN.size && `${HIDDEN.size} מנות`, blRests && `${blRests} מסעדות`].filter(Boolean).join(' · ')})` : '';
+  if (t != null) $('counter').textContent += ` · 🕒 מחושב לשעה ${S.time}`;
+  if (by != null) $('counter').textContent += ` · 🎯 מגיע עד ${S.by}`;
+  $('tquick').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.t === S.time));
+  const maxPage = Math.max(0, Math.ceil(VIEW.length / PAGE) - 1);
+  if (S.page > maxPage) S.page = maxPage;
+  render();
+  writeHash();
+}
+
+/* ---------- render ---------- */
+function renderHead() {
+  $('thead').innerHTML = COLS.map(c => {
+    if (!c.key) return `<th class="nosort ${c.cls || ''}">${c.label}</th>`;
+    const on = S.sort === c.key;
+    return `<th data-k="${c.key}" class="${c.cls || ''}${on ? ' sorted' : ''}" aria-sort="${on ? (S.dir > 0 ? 'ascending' : 'descending') : 'none'}">${c.label}<span class="ind">${on ? (S.dir > 0 ? '▲' : '▼') : ''}</span></th>`;
+  }).join('');
+}
+const CLOSED_WHY = { RestaurantIsBusy: 'עמוס כרגע', RestaurantClosedToday: 'סגור היום',
+                     NoCommunicationFromTheRestaurant: 'אין קשר למסעדה', OutdatedAreas: 'אזורי משלוח לא מעודכנים' };
+function openBadge(d) {
+  if (!d._open) {
+    const why = CLOSED_WHY[d.closed_reason] || (d.closed_reason ? d.closed_reason : '');
+    return `<span class="badge b-closed">סגור${why ? ` · ${esc(why)}` : ''}</span>`;
+  }
+  const kind = d._arrNow ? d._arrNow.kind : d.delivery_mode === 'Pool' ? 'pool' : 'asap';
+  if (kind === 'pool')
+    return `<span class="badge b-pool" title="משלוח משותף (משרדים): מזמינים עד ${esc(d.delivery_to)} וכל ההזמנות מגיעות יחד בצהריים.${d.pool_min ? ` מינימום להזמנה משותפת ₪${d.pool_min}.` : ''} משלוח רגיל סגור כרגע – אם הכתובת שלך לא משתתפת, המסעדה תופיע כסגורה.">🚚 משותף עד ${esc(d.delivery_to)}</span>`;
+  if (kind === 'slot')
+    return `<span class="badge b-pool" title="משלוח רגיל סגור עכשיו – אפשר להזמין עכשיו למועד מתוזמן">🗓️ מתוזמן מ-${fmtMin(d._arrNow.s)}</span>`;
+  return '<span class="badge b-open">פתוח</span>';
+}
+function arrivalCell(d) {
+  const a = d._arr;
+  if (!a) return '<span class="small">לא ניתן לשעה זו</span>';
+  if (a.kind === 'pool') return `<span title="משלוח משותף – כל ההזמנות מגיעות יחד">🚚 ${fmtMin(a.s)}–${fmtMin(a.e)}</span>`;
+  if (a.kind === 'slot') return `<span title="משלוח מתוזמן (המוקדם ביותר)">🗓️ ${fmtMin(a.s)}–${fmtMin(a.e)}</span>`;
+  return a.mins != null ? `🛵 ~${fmtMin(a.s)}<span class="small" style="display:block">${a.mins} דק׳</span>` : '—';
+}
+function row(d) {
+  const key = favKey(d), missing = d.min_order - d.price, fav = FAVS.has(key), bl = BL.has(d.restaurant_id);
+  const hid = HIDDEN.has(key) || bl;
+  const noship = `<label class="noship" title="המסעדה לא שולחת לכתובת שלך – הסתרת כל המנות שלה מכל חיפוש"><input type="checkbox" data-block="${esc(d.restaurant_id)}" data-name="${esc(d.restaurant_name)}" ${bl ? 'checked' : ''}> 🚫 לא שולח אליי</label>`;
+  const fee = d._freeNow ? `<span class="badge b-free">חינם</span><s>${money(d.delivery_fee)}</s><span class="fee-t">🕒 ${esc(noteWhy(d._freeNow, 'on', toMin(S.time) ?? nowMin()))}</span>`
+    : d._fee ? money(d._fee) : '<span class="badge b-free">חינם</span>';
+  const ICON = { free: '🛵', deal: '🏷️', start: '🕛', info: '🕒' };
+  const notes = d._notes.map((n, i) => {
+    const st = d._st[i] || 'info', why = noteWhy(n, st, toMin(S.time) ?? nowMin());
+    const short = n.text.length > 70 ? n.text.slice(0, 68) + '…' : n.text;
+    return `<span class="badge tn ${st}" title="${esc(d.announcement)}">${why ? `<i>${esc(why)}</i>` : ''}${ICON[n.kind]} ${esc(short)}</span>`;
+  }).join('');
+  return `<tr class="${d._open ? '' : 'closed'}${hid ? ' hidden-row' : ''}">
+<td class="c-rest"><div class="rest">${d.restaurant_logo ? `<img loading="lazy" src="${esc(d.restaurant_logo)}" alt="">` : ''}<div><b>${esc(d.restaurant_name)}${d.announcement ? `<span class="ann" title="${esc(d.announcement)}">📢</span>` : ''}${PAT[d.restaurant_id] ? `<span class="ann" data-pat="${esc(d.restaurant_name)}" title="${esc('דפוס שנלמד (לחצו לפרטים):\n' + PAT[d.restaurant_id].rules.map(patText).join('\n'))}">🕒</span>` : ''}</b><span class="small">${esc(d.cuisine)}</span>${noship}</div></div></td>
+<td class="c-dish"><div class="dish"><div class="marks"><button class="fav${fav ? ' on' : ''}" data-fav="${esc(key)}" title="${fav ? 'הסרה מהמועדפים' : 'הוספה למועדפים'}" aria-pressed="${fav}">${fav ? '♥' : '♡'}</button><input type="checkbox" class="hide" data-hide="${esc(key)}" ${hid ? 'checked' : ''} title="${hid ? 'ביטול הסתרה' : 'הסתרה לתמיד'}" aria-label="הסתרה לתמיד"></div><div><span class="m-rest small">${esc(d.restaurant_name)}${noship}</span><b>${esc(d.dish_name)}</b>${d.image_url ? `<button class="pic" data-img="${esc(d.image_url)}" aria-label="תמונת המנה">📷</button>` : ''}${d._open ? '' : ' <span class="badge b-closed">סגור</span>'}<div class="desc" title="${esc(d.description)}">${esc(d.description)}</div></div></div></td>
+<td class="num">${money(d.price)}${d.original_price ? `<s>${money(d.original_price)}</s>` : ''}</td>
+<td>${d.promo ? `<span class="badge b-promo">${esc(d.promo)}</span>` : ''}${rinfo(d)?.free_over ? `<span class="badge b-free tn">🛵 משלוח חינם מעל ₪${rinfo(d).free_over}</span>` : ''}${notes}</td>
+<td class="num">${fee}</td>
+<td class="num">${arrivalCell(d)}</td>
+<td class="num">${d.rating ? `<span class="stars" data-rev="${esc(d.restaurant_id)}" data-name="${esc(d.restaurant_name)}" data-rating="${d.rating}" data-count="${d.review_count || ''}">⭐ ${d.rating}</span>` : '—'}</td>
+<td class="num total">${money(d._total)}</td>
+<td class="num">${d.min_order ? money(d.min_order) : '—'}${missing > 0 ? `<br><span class="badge b-min">חסרים ${money(Math.round(missing * 100) / 100).slice(1)} ₪ למינימום</span>` : ''}</td>
+<td>${openBadge(d)}</td>
+<td class="c-order"><a class="order" href="${esc(d.order_url)}" target="_blank" rel="noopener">הזמן ←</a></td></tr>`;
+}
+function render() {
+  renderHead();
+  const start = S.page * PAGE;
+  $('tbody').innerHTML = VIEW.slice(start, start + PAGE).map(row).join('');
+  $('empty').hidden = VIEW.length > 0 || !ALL.length;
+  if (!ALL.length) { $('tbody').innerHTML = ''; $('empty').hidden = false;
+    $('empty').textContent = CFG.search_url
+      ? 'אין עדיין נתונים – לחצו על "🔄 רענון נתונים"'
+      : 'התחברו ל-10bis ולחצו על "🔄 רענון נתונים" – הכתובת והמנות ייטענו אוטומטית'; }
+  else $('empty').textContent = 'אין תוצאות – נסו להרחיב את טווח המחירים';
+  const pages = Math.ceil(VIEW.length / PAGE);
+  $('pager').innerHTML = pages > 1 ? `
+    <button class="btn" data-p="0" ${S.page ? '' : 'disabled'}>« ראשון</button>
+    <button class="btn" data-p="${S.page - 1}" ${S.page ? '' : 'disabled'}>‹ הקודם</button>
+    <span>עמוד ${S.page + 1} מתוך ${pages}</span>
+    <button class="btn" data-p="${S.page + 1}" ${S.page < pages - 1 ? '' : 'disabled'}>הבא ›</button>
+    <button class="btn" data-p="${pages - 1}" ${S.page < pages - 1 ? '' : 'disabled'}>אחרון »</button>` : '';
+  $('chips').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', S.q.trim() === c.dataset.q));
+}
+function renderAddress() {
+  const a = $('addr'), addr = META.address || CFG.address;
+  a.classList.toggle('unset', !CFG.search_url);
+  a.textContent = !CFG.search_url ? '📍 הכתובת תזוהה אחרי התחברות' : addr ? '📍 ' + addr : '📍 כתובת מוגדרת';
+}
+function renderStatus() {
+  renderAddress();
+  if (!META.last_updated) { $('status').textContent = CFG.search_url ? 'אין נתונים עדיין' : 'ממתין להתחברות'; $('stale').hidden = true; return; }
+  const d = new Date(META.last_updated), p = n => String(n).padStart(2, '0');
+  $('status').textContent = `עודכן: ${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())} · ` +
+    `${(META.restaurant_count || 0).toLocaleString('he-IL')} מסעדות · ${(META.dish_count || 0).toLocaleString('he-IL')} מנות` +
+    (META.error_count ? ` · ${META.error_count} שגיאות` : '');
+  const hours = (Date.now() - d) / 36e5;
+  $('stale').hidden = hours < STALE_HOURS;
+  $('stale').textContent = `⚠️ הנתונים בני ${Math.floor(hours)} שעות`;
+}
+
+/* ---------- URL hash state ---------- */
+function writeHash() {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(S)) if (v !== DEFAULTS[k] && v !== '') p.set(k, v === true ? '1' : v);
+  const h = p.toString();
+  history.replaceState(null, '', h ? '#' + h : location.pathname);
+}
+function readHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  S = { ...DEFAULTS };
+  for (const k of Object.keys(DEFAULTS)) {
+    if (!p.has(k)) continue;
+    const v = p.get(k);
+    S[k] = typeof DEFAULTS[k] === 'boolean' ? v === '1' : typeof DEFAULTS[k] === 'number' ? (+v || DEFAULTS[k]) : v;
+  }
+  if (!SORTERS[S.sort]) S.sort = 'total';
+  S.dir = S.dir < 0 ? -1 : 1;
+  syncInputs();
+}
+function syncInputs() {
+  for (const k of ['q', 'nq', 'kosher', 'mode', 'pmin', 'pmax', 'time', 'by']) $(k).value = S[k];
+  for (const k of ['incl', 'open', 'free', 'promo', 'noext', 'fav', 'showhid']) $(k).checked = S[k];
+}
+
+/* ---------- export ---------- */
+function exportCsv() {
+  const head = ['מסעדה', 'מטבח', 'מנה', 'תיאור', 'קטגוריה', 'מחיר', 'מחיר מקורי', 'מבצע', 'משלוח',
+                'סה״כ כולל משלוח', 'מינימום', 'משלוח מ', 'משלוח עד', 'פתוח', 'קישור להזמנה'];
+  const cell = v => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const lines = [head, ...VIEW.map(d => [d.restaurant_name, d.cuisine, d.dish_name, d.description, d.category,
+    d.price, d.original_price ?? '', d.promo, d._fee, d._total, d.min_order, d.delivery_from,
+    d.delivery_to, d._open ? 'כן' : 'לא', d.order_url])].map(r => r.map(cell).join(','));
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `10bis-dishes-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ---------- refresh ---------- */
+let pollTimer = null, refreshAfterLogin = false;
+const PHASE = { starting: 'מתחבר לאתר…', listing: 'טוען רשימת מסעדות…', authenticating: 'מתחבר לחשבון – הזינו קוד',
+                menus: 'שולף תפריטים…', saving: 'שומר תוצאות…',
+                address: 'מזהה את כתובת המשלוח מחשבון 10bis…', address_manual: 'בחרו כתובת משלוח בחלון 10bis שנפתח' };
+async function startRefresh() {
+  $('refreshBtn').disabled = true;
+  try {
+    const { status, data } = await api('/api/refresh', { method: 'POST' });
+    if (status === 409) toast(data?.error || 'כבר רץ רענון');
+  } catch (e) { toast(e.message, true); $('refreshBtn').disabled = false; return; }
+  pollRefresh();
+}
+function pollRefresh() {
+  clearTimeout(pollTimer);
+  $('refreshBtn').disabled = true;
+  $('progress').classList.add('on');
+  const tick = async () => {
+    let st;
+    try { st = (await api('/api/refresh/status')).data; }
+    catch { pollTimer = setTimeout(tick, 2000); return; }
+    if (st.running) {
+      // Determinate only while menus are being fetched (real done/total from the scraper).
+      const known = st.phase === 'menus' && st.total, pct = known ? Math.round(st.done / st.total * 100) : null;
+      $('ring').classList.toggle('indet', !known);
+      $('ring').querySelector('.val').style.strokeDashoffset = 150.8 * (1 - (known ? pct / 100 : .25));
+      $('pct').textContent = known ? pct + '%' : '';
+      known ? $('ring').setAttribute('aria-valuenow', pct) : $('ring').removeAttribute('aria-valuenow');
+      $('pstep').textContent = PHASE[st.phase] || 'מעבד…';
+      $('ptext').textContent = known ? `${st.done} / ${st.total} מסעדות נסרקו${st.current_restaurant ? ' – ' + st.current_restaurant : ''}` : '';
+      pollTimer = setTimeout(tick, 1000);
+      return;
+    }
+    $('progress').classList.remove('on');
+    $('refreshBtn').disabled = false;
+    if (st.login_required) { refreshAfterLogin = true; $('loginBanner').classList.add('on'); openLogin(); }
+    else if (st.error) toast('הרענון נכשל: ' + st.error + ' – אפשר לנסות שוב', true);
+    else { CFG = (await api('/api/config')).data; renderAddress(); await loadData(); toast(`✓ הושלם – ${(META.dish_count || 0).toLocaleString('he-IL')} מנות`); }
+  };
+  tick();
+}
+
+/* ---------- auth ---------- */
+let authTimer = null;
+const METHOD_LABEL = { otp: 'קוד חד-פעמי', password: 'מייל + סיסמה', manual: 'ידנית בחלון דפדפן' };
+function credsText(c) {
+  const parts = [c.email ? 'מייל ✓' : 'מייל ✗', c.password ? 'סיסמה ✓' : 'סיסמה ✗', c.phone ? 'טלפון ✓' : 'טלפון ✗'];
+  return 'פרטי התחברות מ-.env: ' + parts.join(' · ');
+}
+async function openLogin() {
+  const { data } = await api('/api/auth/status');
+  $('lInfo').textContent = data.method === 'manual'
+    ? 'ייפתח חלון של 10bis – התחברו כרגיל (מייל או SMS). החלון ייסגר לבד בסיום.'
+    : `שיטה: ${METHOD_LABEL[data.method] || data.method} · ${credsText(data.credentials)}`;
+  $('lMsg').textContent = data.message || '';
+  if (!$('loginDlg').open) $('loginDlg').showModal();
+  if (data.in_progress) pollAuth();
+}
+async function startLogin(extra = {}) {
+  $('lMsg').textContent = '';
+  const { status, data } = await api('/api/auth/login', { method: 'POST', body: extra });
+  if (status === 409) { toast(data?.error || 'פעולה אחרת פועלת', true); return; }
+  pollAuth();
+}
+function pollAuth() {
+  clearTimeout(authTimer);
+  $('lGo').disabled = $('sTest').disabled = true;
+  const tick = async () => {
+    let a; try { a = (await api('/api/auth/status')).data; } catch { authTimer = setTimeout(tick, 2000); return; }
+    const msg = a.message || '';
+    $('lMsg').textContent = msg; $('sMsg').textContent = msg;
+    $('otpBox').hidden = $('lOtp').hidden = !a.needs_otp;
+    if (a.needs_otp && !$('loginDlg').open) { $('settingsDlg').close(); $('loginDlg').showModal(); }
+    if (a.needs_otp && document.activeElement !== $('otp')) $('otp').focus();
+    if (a.in_progress) { authTimer = setTimeout(tick, 1000); return; }
+    $('lGo').disabled = $('sTest').disabled = false;
+    $('loginBanner').classList.toggle('on', !a.logged_in && a.login_required);
+    if (a.logged_in) {
+      toast('מחובר/ת ✓');
+      if ($('loginDlg').open) $('loginDlg').close();
+      if (refreshAfterLogin) { refreshAfterLogin = false; startRefresh(); }
+    }
+  };
+  tick();
+}
+async function sendOtp() {
+  const code = $('otp').value.trim();
+  if (!code) return;
+  try { await api('/api/auth/otp', { method: 'POST', body: { code } }); $('otp').value = ''; $('lMsg').textContent = 'בודק קוד…'; }
+  catch (e) { $('lMsg').textContent = e.message; }
+}
+
+/* ---------- exit ---------- */
+async function exitApp() {
+  const busy = $('refreshBtn').disabled;
+  if (!confirm(busy ? 'רענון הנתונים עדיין פועל ויופסק. לצאת מהאפליקציה?' : 'לצאת מהאפליקציה?')) return;
+  try { await api('/api/shutdown', { method: 'POST' }); }
+  catch (e) { toast('היציאה נכשלה: ' + e.message, true); return; }
+  clearTimeout(pollTimer); clearTimeout(authTimer);
+  document.body.innerHTML = `<div style="display:grid;place-items:center;min-height:100dvh;text-align:center;padding:16px">
+    <div><div style="font-size:42px">👋</div><h2>האפליקציה נסגרה</h2>
+    <p>אפשר לסגור את הלשונית. לפתיחה מחדש – לחיצה כפולה על הקובץ.</p></div></div>`;
+  window.close();
+}
+
+/* ---------- learned time-of-day patterns (history.db → /api/patterns) ---------- */
+let PAT = {}, PATDATA = null;
+const PAT_ICON = { free: '🛵', deal: '🏷️', start: '🕛', stop: '⛔', info: '🕒' };
+const patText = r => `${PAT_ICON[r.kind] || '🕒'} ${r.text}${r.days_label !== 'א׳–ה׳' ? ` (${r.days_label})` : ''}`;
+async function loadPatterns() {
+  try { PATDATA = (await api('/api/patterns')).data; } catch { return; }
+  PAT = Object.fromEntries(PATDATA.restaurants.map(r => [r.id, r]));
+}
+function patActive(r) {
+  const t = nowMin();
+  return r.days.includes(new Date().getDay()) && t >= r.from && t < r.to;
+}
+function patStrip(tl) {
+  // 06:00–24:00 in 30-min cells (slots 12..47): open/closed, delivery fee, discount, minimum order.
+  const now = new Date().getHours() * 2 + (new Date().getMinutes() >= 30 ? 1 : 0), S0 = 12;
+  const minBase = Math.min(...tl.min_order.filter(v => v != null)), feeBase = Math.max(...tl.fee.filter(v => v != null));
+  const cell = (cls, tip, s) => `<i class="${cls}${s === now ? ' now' : ''}" title="${fmtMin(s * 30)} · ${esc(tip)}"></i>`;
+  const line = (label, f) => `<b>${label}</b>` + Array.from({ length: 36 }, (_, i) => f(i + S0)).join('');
+  return `<div class="strip">
+    ${line('פתוח', s => tl.avail[s] == null ? cell('', 'אין מספיק נתונים', s) : cell(tl.avail[s] ? 'y' : 'n', tl.avail[s] ? 'מקבל הזמנות' : 'לא מקבל הזמנות', s))}
+    ${line('משלוח', s => tl.fee[s] == null ? cell('', '—', s) : cell(tl.fee[s] === 0 ? 'y' : tl.fee[s] < feeBase ? 'p' : 'k', tl.fee[s] === 0 ? 'משלוח חינם' : `משלוח ₪${tl.fee[s]}`, s))}
+    ${line('הנחה', s => tl.discount_pct[s] == null ? cell('', '—', s) : cell(tl.discount_pct[s] ? 'p' : 'k', tl.discount_pct[s] ? `${tl.discount_pct[s]}% הנחה` : 'בלי הנחה', s))}
+    ${line('מינימום', s => tl.min_order[s] == null ? cell('', '—', s) : cell(tl.min_order[s] > minBase ? 'a' : 'k', `מינימום ₪${tl.min_order[s]}`, s))}
+    <b></b>${[6, 9, 12, 15, 18, 21].map(h => `<span>${h}:00</span>`).join('')}
+  </div>`;
+}
+function renderPatterns() {
+  const c = PATDATA?.coverage;
+  if (!c) { $('pCov').textContent = 'לא ניתן לטעון נתונים'; return; }
+  const groups = Object.entries(c.days_by_group || {}).map(([k, v]) => `${k}: ${v}`).join(' · ');
+  $('pCov').className = 'pcov' + (c.snapshot_error ? ' err' : '');
+  $('pCov').innerHTML = !c.snapshots
+    ? 'עדיין לא נאספו דגימות. האפליקציה דוגמת את תנאי המסעדות כל 30 דקות (⚙️ הגדרות) – הדפוסים יופיעו אחרי יומיים של איסוף, ויהיו אמינים אחרי ~5 ימים.'
+    : `נאספו <b>${c.snapshots}</b> דגימות ב-<b>${c.days}</b> ימים (${esc(groups)}) · ${c.analysed} מסעדות נבדקו · <b>${PATDATA.restaurants.length}</b> עם דפוס.
+       ${c.days < 5 ? `<br>דפוס נחשב רק אם חזר לפחות ${c.min_days} ימים מאותו סוג (א׳–ה׳ / שישי / שבת) – ככל שנאסוף יותר ימים הדפוסים יתחדדו.` : ''}
+       ${c.snapshot_error ? `<br>⚠️ הדגימה האחרונה נכשלה: ${esc(c.snapshot_error)}` : ''}`;
+  const q = norm($('pQ').value).trim(), onlyNow = $('pNow').checked;
+  const list = PATDATA.restaurants.filter(r => (!q || norm(r.name).includes(q)) && (!onlyNow || r.rules.some(patActive)));
+  $('pCards').innerHTML = list.map(r => `<div class="pcard">
+    <div class="rest">${r.logo ? `<img loading="lazy" src="${esc(r.logo)}" alt="">` : ''}<div><b>${esc(r.name)}</b>
+      <span class="small">${r.hours ? `שעות רשמיות ${esc(r.hours)}` : ''}${r.announcement ? ` · 📢 ${esc(r.announcement.slice(0, 120))}` : ''}</span></div></div>
+    <div>${r.rules.map(x => { const on = patActive(x);
+      return `<span class="badge tn ${on ? (x.kind === 'stop' || x.kind === 'start' ? 'warn' : 'on') : 'info'}" title="נצפה ב-${x.support} ימים${on ? ' · בתוקף עכשיו' : ''}">${on ? '<i>● עכשיו</i>' : ''}${esc(patText(x))}</span>`; }).join('')}</div>
+    ${Object.entries(r.timeline).map(([g, tl]) => `${Object.keys(r.timeline).length > 1 ? `<div class="small" style="margin-top:6px">${esc(g)}</div>` : ''}${patStrip(tl)}`).join('')}
+  </div>`).join('') || (c.snapshots ? '<div class="empty">אין עדיין דפוסים חוזרים' + (q || onlyNow ? ' שמתאימים לסינון' : '') + '</div>' : '');
+}
+async function openPatterns(name) {
+  $('pQ').value = name || '';
+  if (!$('patDlg').open) $('patDlg').showModal();
+  await loadPatterns();
+  renderPatterns();
+}
+
+/* ---------- settings ---------- */
+async function openSettings() {
+  const [{ data: cfg }, { data: a }] = await Promise.all([api('/api/config'), api('/api/auth/status')]);
+  $('sEngine').value = cfg.engine || 'playwright';
+  $('sMethod').value = cfg.login_method || 'otp';
+  $('sAuto').value = cfg.auto_refresh_hours || 0;
+  $('sSnap').value = cfg.snapshot_minutes ?? 30;
+  $('sSnapFrom').value = cfg.snapshot_from || '08:00';
+  $('sSnapTo').value = cfg.snapshot_to || '23:00';
+  $('sSyn').value = cfg.synonyms || '';
+  $('credsHint').textContent = credsText(a.credentials) + (a.logged_in === true ? ' · מחובר/ת ✓' : a.logged_in === false ? ' · לא מחובר/ת' : '');
+  $('sMsg').textContent = '';
+  $('settingsDlg').showModal();
+}
+async function saveSettings() {
+  const body = { engine: $('sEngine').value, login_method: $('sMethod').value,
+                 auto_refresh_hours: +$('sAuto').value || 0, synonyms: $('sSyn').value,
+                 snapshot_minutes: +$('sSnap').value || 0, snapshot_from: $('sSnapFrom').value, snapshot_to: $('sSnapTo').value };
+  try {
+    const { data: cfg } = await api('/api/config', { method: 'POST', body });
+    if ((cfg.search_url || '') !== CFG.search_url) { ALL = []; META = {}; }
+    CFG = cfg;
+    renderAddress(); renderStatus();
+    setSynonyms(body.synonyms); apply();
+    $('sMsg').textContent = 'נשמר ✓';
+    return true;
+  } catch (e) { $('sMsg').textContent = e.message; return false; }
+}
+
+/* ---------- wire up ---------- */
+$('chips').innerHTML = CHIPS.map(c => `<button class="chip" data-q="${c}">${c}</button>`).join('');
+$('tquick').innerHTML = [['', 'עכשיו'], ['10:00'], ['12:00'], ['13:00'], ['19:00']]
+  .map(([t, l]) => `<button class="chip" data-t="${t}">${l || t}</button>`).join('');
+$('tquick').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  S.time = c.dataset.t; $('time').value = S.time; S.page = 0; apply();
+});
+$('chips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  S.q = S.q.trim() === c.dataset.q ? '' : c.dataset.q; $('q').value = S.q; S.page = 0; apply();
+});
+const onSearch = debounce(() => { S.q = $('q').value; S.page = 0; apply(); }, 200);
+const rememberSoon = debounce(saveRecent, 1500);
+$('q').addEventListener('input', onSearch);
+for (const k of ['q', 'nq']) {
+  $(k).addEventListener('input', rememberSoon);
+  $(k).addEventListener('keydown', e => { if (e.key === 'Enter') { S[k] = $(k).value; apply(); saveRecent(); } });
+}
+$('recent').addEventListener('change', () => {
+  const v = $('recent').value; $('recent').value = '';
+  if (v === 'clear') { RECENT = []; try { localStorage.removeItem('recent'); } catch {} renderRecent(); return; }
+  const r = RECENT[+v]; if (!r) return;
+  S.q = r.q; S.nq = r.nq || ''; S.page = 0; syncInputs(); apply(); saveRecent(true);   // move to top
+});
+renderRecent();
+for (const k of ['nq', 'pmin', 'pmax', 'time', 'by']) $(k).addEventListener('input', debounce(() => { S[k] = $(k).value; S.page = 0; apply(); }, 200));
+for (const k of ['incl', 'open', 'free', 'promo', 'noext', 'fav', 'showhid']) $(k).addEventListener('change', () => { S[k] = $(k).checked; S.page = 0; apply(); });
+$('mode').addEventListener('change', () => {
+  S.mode = $('mode').value; S.page = 0; apply();
+  if (S.mode && ALL.length && ALL.every(d => d.delivery_mode == null)) toast('אין עדיין נתוני סוג משלוח – לחצו "🔄 רענון נתונים"', true);
+});
+$('kosher').addEventListener('change', () => {
+  S.kosher = $('kosher').value; S.page = 0; apply();
+  if (S.kosher && ALL.length && ALL.every(d => d.kosher == null)) toast('אין עדיין נתוני כשרות – לחצו "🔄 רענון נתונים"', true);
+});
+$('tbody').addEventListener('change', e => {
+  const r = e.target.closest('[data-block]'); if (!r) return;
+  const id = +r.dataset.block;
+  r.checked ? BL.add(id) : BL.delete(id);
+  saveBlocked();
+  apply();
+  toast(r.checked ? `🚫 כל המנות של ${r.dataset.name} הוסתרו – "הצג מוסתרים" כדי להחזיר` : `✓ ${r.dataset.name} חזרה לתוצאות`);
+});
+$('tbody').addEventListener('change', e => {
+  const c = e.target.closest('[data-hide]'); if (!c) return;
+  c.checked ? HIDDEN.add(c.dataset.hide) : HIDDEN.delete(c.dataset.hide);
+  saveSet('hidden', HIDDEN);
+  apply();
+  if (c.checked) toast('המנה הוסתרה – "הצג מוסתרים" כדי להחזיר');
+});
+/* dish image: fetched only when the 📷 is hovered (or tapped on touch screens) */
+const PV = $('preview'), PVimg = PV.querySelector('img'), PVld = PV.querySelector('.ld');
+PVimg.addEventListener('load', () => PVld.hidden = true);
+PVimg.addEventListener('error', () => { PVld.hidden = false; PVld.textContent = 'אין תמונה'; });
+function showPic(b) {
+  if (PVimg.getAttribute('src') !== b.dataset.img) {
+    PVld.hidden = false; PVld.textContent = 'טוען תמונה…'; PVimg.src = b.dataset.img;
+  }
+  const r = b.getBoundingClientRect(), W = 270, H = 270;
+  // Prefer the left of the icon (RTL page: the table flows that way), flip if it would leave the screen.
+  let x = r.left - W - 8; if (x < 8) x = Math.min(r.right + 8, innerWidth - W - 8);
+  let y = r.top + r.height / 2 - H / 2; y = Math.max(8, Math.min(y, innerHeight - H - 8));
+  PV.style.left = x + 'px'; PV.style.top = y + 'px';
+  PV.classList.add('on');
+}
+const hidePic = () => PV.classList.remove('on');
+$('tbody').addEventListener('mouseover', e => { const b = e.target.closest('[data-img]'); if (b) showPic(b); });
+$('tbody').addEventListener('mouseout', e => { if (e.target.closest('[data-img]')) hidePic(); });
+$('tableWrap').addEventListener('scroll', hidePic, { passive: true });
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-img]');
+  if (b) PV.classList.contains('on') && PVimg.getAttribute('src') === b.dataset.img ? hidePic() : showPic(b);
+  else hidePic();
+});
+/* reviews popover: fetched on hover via the local server (10bis doesn't allow calls from this page) */
+const RV = $('reviews'), RVcache = new Map();
+let rvFor = null, rvHideT = null;
+const starStr = n => '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n));
+function rvRender(id) {
+  const list = RVcache.get(id);
+  RV.querySelector('.rl').innerHTML = list === undefined ? '<div class="rempty">טוען ביקורות…</div>'
+    : list === null ? '<div class="rempty">לא ניתן לטעון ביקורות כרגע</div>'
+    : !list.length ? '<div class="rempty">אין ביקורות כתובות</div>'
+    : list.map(r => `<div class="rv"><div class="top"><b>${esc(r.name)}</b><span>${esc(r.date)}</span><span class="st" title="${r.stars}/5">${starStr(r.stars)}</span></div>${r.text ? `<p>${esc(r.text)}</p>` : ''}</div>`).join('');
+}
+async function showReviews(el) {
+  clearTimeout(rvHideT);
+  const id = +el.dataset.rev;
+  if (rvFor !== id) {
+    rvFor = id;
+    const cnt = +el.dataset.count;
+    RV.querySelector('.rh').innerHTML = `${esc(el.dataset.name)}<span class="small">⭐ ${esc(el.dataset.rating)}${cnt ? ` · ${cnt.toLocaleString('he-IL')} דירוגים · ביקורות אחרונות` : ''}</span>`;
+    RV.querySelector('.rl').scrollTop = 0;
+    rvRender(id);
+  }
+  const r = el.getBoundingClientRect(), W = RV.offsetWidth || 360;
+  RV.classList.add('on');
+  const H = RV.offsetHeight;
+  let x = r.left - W - 10; if (x < 8) x = Math.min(r.right + 10, innerWidth - W - 8);
+  let y = r.top + r.height / 2 - H / 2; y = Math.max(8, Math.min(y, innerHeight - H - 8));
+  RV.style.left = Math.max(8, x) + 'px'; RV.style.top = y + 'px';
+  if (!RVcache.has(id)) {
+    try { RVcache.set(id, (await api(`/api/reviews/${id}`)).data.reviews || []); }
+    catch { RVcache.set(id, null); setTimeout(() => RVcache.get(id) === null && RVcache.delete(id), 30000); }
+    if (rvFor === id && RV.classList.contains('on')) showReviews(el);   // re-render + re-fit height
+  }
+}
+// Small delay so the mouse can travel from the stars into the popover (to scroll it).
+const hideReviewsSoon = () => { clearTimeout(rvHideT); rvHideT = setTimeout(() => { RV.classList.remove('on'); rvFor = null; }, 250); };
+$('tbody').addEventListener('mouseover', e => { const s = e.target.closest('[data-rev]'); if (s) showReviews(s); });
+$('tbody').addEventListener('mouseout', e => { if (e.target.closest('[data-rev]')) hideReviewsSoon(); });
+RV.addEventListener('mouseenter', () => clearTimeout(rvHideT));
+RV.addEventListener('mouseleave', hideReviewsSoon);
+$('tableWrap').addEventListener('scroll', () => { RV.classList.remove('on'); rvFor = null; }, { passive: true });
+document.addEventListener('click', e => {
+  const s = e.target.closest('[data-rev]');
+  if (s) showReviews(s);
+  else if (!RV.contains(e.target)) { RV.classList.remove('on'); rvFor = null; }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { RV.classList.remove('on'); rvFor = null; } });
+$('tbody').addEventListener('click', e => {
+  const b = e.target.closest('[data-fav]'); if (!b) return;
+  const k = b.dataset.fav, on = !FAVS.has(k);
+  on ? FAVS.add(k) : FAVS.delete(k);
+  saveSet('favorites', FAVS);
+  if (S.fav) apply();   // un-hearting while filtered removes the row
+  else { b.classList.toggle('on', on); b.textContent = on ? '♥' : '♡'; b.setAttribute('aria-pressed', on);
+         b.title = on ? 'הסרה מהמועדפים' : 'הוספה למועדפים'; }
+});
+$('clear').addEventListener('click', () => { S = { ...DEFAULTS, sort: S.sort, dir: S.dir }; syncInputs(); apply(); });
+$('thead').addEventListener('click', e => {
+  const th = e.target.closest('th[data-k]'); if (!th) return;
+  const k = th.dataset.k;
+  if (S.sort === k) S.dir = -S.dir; else { S.sort = k; S.dir = 1; }
+  S.page = 0; apply();
+});
+$('pager').addEventListener('click', e => {
+  const b = e.target.closest('[data-p]'); if (!b || b.disabled) return;
+  S.page = +b.dataset.p; render(); writeHash(); $('tableWrap').scrollTop = 0;
+});
+$('export').addEventListener('click', exportCsv);
+$('refreshBtn').addEventListener('click', startRefresh);
+function renderTheme() {
+  const dark = document.documentElement.dataset.theme === 'dark', b = $('themeBtn');
+  b.textContent = dark ? '☀️' : '🌙';
+  b.title = b.ariaLabel = dark ? 'מצב יום' : 'מצב לילה';
+}
+$('themeBtn').addEventListener('click', () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('theme', t); } catch {}
+  renderTheme();
+});
+renderTheme();
+$('settingsBtn').addEventListener('click', openSettings);
+$('patBtn').addEventListener('click', () => openPatterns());
+$('pClose').addEventListener('click', () => $('patDlg').close());
+$('pQ').addEventListener('input', debounce(renderPatterns, 150));
+$('pNow').addEventListener('change', renderPatterns);
+$('pSnap').addEventListener('click', async () => {
+  const { status, data } = await api('/api/snapshot', { method: 'POST' });
+  if (status === 409) { toast(data?.error || 'פעולה אחרת פועלת', true); return; }
+  toast('📸 דוגם…');
+  setTimeout(() => openPatterns($('pQ').value), 15000);
+});
+$('tbody').addEventListener('click', e => { const p = e.target.closest('[data-pat]'); if (p) openPatterns(p.dataset.pat); });
+$('exitBtn').addEventListener('click', exitApp);
+$('sSave').addEventListener('click', saveSettings);
+$('sClose').addEventListener('click', () => $('settingsDlg').close());
+$('sTest').addEventListener('click', async () => { if (await saveSettings()) startLogin({ method: $('sMethod').value }); });
+$('sLogout').addEventListener('click', async () => {
+  try {
+    await api('/api/auth/logout', { method: 'POST' });
+    ALL = []; META = {}; CFG = (await api('/api/config')).data; renderAddress(); renderStatus(); apply();
+    $('settingsDlg').close(); refreshAfterLogin = true; openLogin();  // switch user
+  } catch (e) { $('sMsg').textContent = e.message; }
+});
+$('sRedetect').addEventListener('click', async () => {
+  try {
+    CFG = (await api('/api/config', { method: 'POST', body: { search_url: '' } })).data;
+    ALL = []; META = {}; renderAddress(); apply(); $('settingsDlg').close(); startRefresh();
+  } catch (e) { $('sMsg').textContent = e.message; }
+});
+$('bannerLogin').addEventListener('click', () => { refreshAfterLogin = true; openLogin(); });
+$('lGo').addEventListener('click', () => startLogin());
+$('lOtp').addEventListener('click', sendOtp);
+$('otp').addEventListener('keydown', e => { if (e.key === 'Enter') sendOtp(); });
+$('lClose').addEventListener('click', () => $('loginDlg').close());
+window.addEventListener('hashchange', () => { readHash(); apply(); });
+setInterval(() => { if (ALL.length) { renderStatus(); if (S.open) apply(); } }, 60000);
+
+(async function init() {
+  readHash();
+  renderHead();
+  try {
+    const { data: cfg } = await api('/api/config');
+    CFG = cfg;
+    setSynonyms(cfg.synonyms);
+    await loadData();
+    const [{ data: st }, { data: a }] = await Promise.all([api('/api/refresh/status'), api('/api/auth/status')]);
+    if (st.running) pollRefresh();
+    if (a.login_required && !a.logged_in) $('loginBanner').classList.add('on');
+    if (a.in_progress) openLogin();
+    // First launch: the only setup is logging in; address + menus load right after.
+    if (!cfg.search_url && !st.running && !a.in_progress) { refreshAfterLogin = true; openLogin(); }
+  } catch (e) { toast('שגיאה בטעינה: ' + e.message, true); }
+})();
+</script>
+</body>
+</html>

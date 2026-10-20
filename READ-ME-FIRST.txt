@@ -1,0 +1,27 @@
+מה בא לי – חיפוש מנות ב-10bis
+================================
+
+לא צריך להתקין כלום (רק Edge או Chrome, שכבר קיימים ב-Windows).
+
+1. חלצו את כל התיקייה (קליק ימני על ה-ZIP ← "חלץ הכל") למקום קבוע, למשל המסמכים.
+   אל תפעילו מתוך ה-ZIP עצמו.
+2. לחיצה כפולה על MaBaLi.exe – האפליקציה תיפתח בדפדפן.
+   אם Windows מציג "Windows protected your PC": "More info" ← "Run anyway".
+3. בפעם הראשונה ייפתח חלון של 10bis – התחברו לחשבון שלכם כרגיל. זהו!
+   הכתובת והמנות ייטענו אוטומטית (כמה דקות, עם מד התקדמות).
+4. 🔄 רענון נתונים – אוסף את כל המנות (כמה דקות).
+5. ⏻ יציאה – סוגר את האפליקציה לגמרי.
+
+סגרתם את הלשונית בטעות? לחיצה כפולה על MaBaLi.exe פותחת אותה שוב.
+ההגדרות, ההתחברות והנתונים נשמרים ב-%LOCALAPPDATA%\MaBaLi – גם אחרי עדכון גרסה
+(מחליפים רק את תיקיית התוכנה). להחלפת משתמש: ⚙️ הגדרות ← התנתקות.
+בעיה? שלחו את הקובץ %LOCALAPPDATA%\MaBaLi\app.log
+===================================================
+**10Bis Viewer – A Better Way to View Your 10Bis Information**
+
+A lightweight desktop application that makes it easier to access, view, and understand your 10Bis account information.
+
+Provides a clear, user-friendly interface for reviewing 10Bis data, with simple navigation and data refresh capabilities.
+
+Designed to run locally on Windows with minimal setup, using your own 10Bis account.
+====================================================
